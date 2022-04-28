@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
-data TTree k v = Node k (Maybe v) (TTree k v) (TTree k v) (TTree k v) | Leaf k v | E deriving Show
+data TTree k v = Node k (Maybe v) (TTree k v) (TTree k v) (TTree k v) | Leaf k v | E deriving (Show, Eq)
 
 {-
 t= (Node 'r' Nothing E (Node 'e' (Just 16) (Node 'a' Nothing  E (Leaf 's' 1) E) (Node 'o' (Just 2) (Leaf 'd' 9) E (Leaf 's' 4)) E) (Node 's' Nothing E (Node 'i' (Just 4) (Leaf 'e' 8)(Leaf 'n' 7) E) E))
@@ -34,20 +34,30 @@ insert (x:xs) v (Node k v2 l e r) | x == k && xs == [] = Node k (Just v) l e r
 
 
 largosSubKeys :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> [Int]
-largosSubKeys [] _ _ = []
-largosSubKeys _ (Leaf k v) s = []
+largosSubKeys [] _ _ = [0]
+largosSubKeys _ (Leaf k v) s = [0]
 largosSubKeys (x:xs) (Node k v l e r) s | k == x && (l /= E || r /= E || v /= Nothing ) = [s] ++ largosSubKeys xs e (s+1)
                                         | k == x                                        = largosSubKeys xs e (s+1)
                                         | x < k                                         = [s] ++ largosSubKeys (x:xs) l (s+1)
                                         | otherwise                                     = [s] ++ largosSubKeys (x:xs) r (s+1)
 
-_delete :: Ord k => [k] -> TTree k v -> Int -> TTree k v
-_delete (x:xs) (Node k v E e E) 0 | k == x    = 
-                                  | x < k     = 
-                                  | otherwise = 
+_delete :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> TTree k v
+_delete _ (Leaf _ _) 0 = E
+_delete [] (Node k _ l e r) _ = Node k Nothing l e r
+_delete (x:xs) (Node k v l e r) 0 | x == k && l == E && r == E = E
+                                  | x == k && v /= Nothing     = Node k v l E r
+                                  | x == k && l == E           = r
+                                  | x == k                     = l
+                                  | x < k                      = Node k v E e r
+                                  | otherwise                  = Node k v l e E
+_delete (x:xs) (Node k v l e r) s | x == k    = Node k v l (_delete xs e (s-1)) r
+                                  | x < k     = Node k v (_delete (x:xs) l (s-1)) e r
+                                  | otherwise = Node k v l e (_delete (x:xs) r (s-1))
 
-delete :: Ord k => [k] -> TTree k v -> TTree k v
-delete xs t = _delete xs t (largosSubKeys xs t 0)
+
+
+delete :: (Ord k, Eq v) => [k] -> TTree k v -> TTree k v
+delete xs t = _delete xs t (maximum (largosSubKeys xs t 0))
 
 -- delete xs E = E
 -- delete xs tree = deleteFrom 
