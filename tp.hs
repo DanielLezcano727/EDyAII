@@ -1,3 +1,7 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+
 data TTree k v = Node k (Maybe v) (TTree k v) (TTree k v) (TTree k v) | Leaf k v | E deriving Show
 
 {-
@@ -27,6 +31,24 @@ insert (x:xs) v (Node k v2 l e r) | x == k && xs == [] = Node k (Just v) l e r
                                   | otherwise          = Node k v2 l e (insert (x:xs) v r)
 
 -- delete :: Ord k => [k] -> TTree k v -> TTree k v
+
+
+largosSubKeys :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> [Int]
+largosSubKeys [] _ _ = []
+largosSubKeys _ (Leaf k v) s = []
+largosSubKeys (x:xs) (Node k v l e r) s | k == x && (l /= E || r /= E || v /= Nothing ) = [s] ++ largosSubKeys xs e (s+1)
+                                        | k == x                                        = largosSubKeys xs e (s+1)
+                                        | x < k                                         = [s] ++ largosSubKeys (x:xs) l (s+1)
+                                        | otherwise                                     = [s] ++ largosSubKeys (x:xs) r (s+1)
+
+_delete :: Ord k => [k] -> TTree k v -> Int -> TTree k v
+_delete (x:xs) (Node k v E e E) 0 | k == x    = 
+                                  | x < k     = 
+                                  | otherwise = 
+
+delete :: Ord k => [k] -> TTree k v -> TTree k v
+delete xs t = _delete xs t (largosSubKeys xs t 0)
+
 -- delete xs E = E
 -- delete xs tree = deleteFrom 
 
@@ -47,3 +69,21 @@ aux E _ = []
 aux (Leaf k v) ks = [ks++[k]]
 aux (Node k Nothing l e r) ks = (aux l ks) ++ (aux e (ks++[k])) ++ (aux r ks)
 aux (Node k _ l e r) ks = (aux l ks) ++ (aux e (ks++[k])) ++ [ks++[k]] ++ (aux r ks)
+
+
+{-
+class Dic k v d | d -> k v where
+    vacio    :: d
+    insertar :: Ord k => k -> v -> d -> d
+    buscar   :: Ord k => k -> v -> Maybe v
+    eliminar :: Ord k => k -> d -> d
+    claves   :: Ord k => d -> [(k, v)]
+
+instance Dic [k] (Maybe v) (TTree k v) where
+    vacio    = E
+    insertar = insert
+    buscar   = search
+    eliminar = delete
+    claves   = keys
+
+-}
