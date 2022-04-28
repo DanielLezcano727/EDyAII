@@ -9,6 +9,7 @@ t= (Node 'r' Nothing E (Node 'e' (Just 16) (Node 'a' Nothing  E (Leaf 's' 1) E) 
 -}
 
 search :: Ord k => [k] -> TTree k v -> Maybe v
+search [] _ = Nothing
 search _ E = Nothing
 search [x] (Leaf k v) | x == k    = Just v 
                       | otherwise = Nothing
@@ -30,9 +31,6 @@ insert (x:xs) v (Node k v2 l e r) | x == k && xs == [] = Node k (Just v) l e r
                                   | x < k              = Node k v2 (insert (x:xs) v l) e r
                                   | otherwise          = Node k v2 l e (insert (x:xs) v r)
 
--- delete :: Ord k => [k] -> TTree k v -> TTree k v
-
-
 largosSubKeys :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> [Int]
 largosSubKeys [] _ _ = [0]
 largosSubKeys _ (Leaf k v) s = [0]
@@ -43,8 +41,8 @@ largosSubKeys (x:xs) (Node k v l e r) s | k == x && (l /= E || r /= E || v /= No
 
 _delete :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> TTree k v
 _delete _ (Leaf _ _) 0 = E
-_delete [] (Node k _ l e r) _ = Node k Nothing l e r
-_delete (x:xs) (Node k v l e r) 0 | x == k && l == E && r == E = E
+_delete (x:xs) (Node k v l e r) 0 | x == k && xs == []         = Node k Nothing l e r
+                                  | x == k && l /= E && r /= E = Node k Nothing l E r
                                   | x == k && v /= Nothing     = Node k v l E r
                                   | x == k && l == E           = r
                                   | x == k                     = l
@@ -54,46 +52,31 @@ _delete (x:xs) (Node k v l e r) s | x == k    = Node k v l (_delete xs e (s-1)) 
                                   | x < k     = Node k v (_delete (x:xs) l (s-1)) e r
                                   | otherwise = Node k v l e (_delete (x:xs) r (s-1))
 
-
-
 delete :: (Ord k, Eq v) => [k] -> TTree k v -> TTree k v
-delete xs t = _delete xs t (maximum (largosSubKeys xs t 0))
-
--- delete xs E = E
--- delete xs tree = deleteFrom 
-
--- steps :: Ord k => [k] -> TTree k v -> Int
--- steps xs ttree = length xs - minimum (largos xs ttree)
-
--- largos [] _ = []
--- largos (x:xs) (Node k v l e r) | x == k = if l /= E || r /= E || v /= Nothing then (length xs):(largos xs e) else largos xs e
-
--- let resultado = minimum (largos xs ttree) where
---     resultado == -1
+delete xs t = if search xs t == Nothing then t else _delete xs t (maximum (largosSubKeys xs t 0))
 
 keys :: TTree k v -> [[k]]
-keys a = aux a []
+keys tree = map fst (inorder tree [])
 
-aux :: TTree k v -> [k] -> [[k]]
-aux E _ = []
-aux (Leaf k v) ks = [ks++[k]]
-aux (Node k Nothing l e r) ks = (aux l ks) ++ (aux e (ks++[k])) ++ (aux r ks)
-aux (Node k _ l e r) ks = (aux l ks) ++ (aux e (ks++[k])) ++ [ks++[k]] ++ (aux r ks)
+inorder :: TTree k v -> [k] -> [([k], v)]
+inorder E _ = []
+inorder (Leaf k v) ks = [(ks++[k], v)]
+inorder (Node k Nothing l e r) ks = (inorder l ks) ++ (inorder e (ks++[k])) ++ (inorder r ks)
+inorder (Node k (Just v) l e r) ks = (inorder l ks) ++ [(ks++[k], v)] ++ (inorder e (ks++[k])) ++ (inorder r ks)
 
+keysAndValues :: Ord k => TTree k v -> [([k], v)]
+keysAndValues tree = inorder tree []
 
-{-
 class Dic k v d | d -> k v where
     vacio    :: d
     insertar :: Ord k => k -> v -> d -> d
-    buscar   :: Ord k => k -> v -> Maybe v
+    buscar   :: Ord k => k -> d -> Maybe v
     eliminar :: Ord k => k -> d -> d
     claves   :: Ord k => d -> [(k, v)]
 
-instance Dic [k] (Maybe v) (TTree k v) where
+instance (Ord k, Eq v) => Dic [k] v (TTree k v) where
     vacio    = E
     insertar = insert
     buscar   = search
     eliminar = delete
-    claves   = keys
-
--}
+    claves   = keysAndValues
