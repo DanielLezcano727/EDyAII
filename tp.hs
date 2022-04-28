@@ -9,28 +9,22 @@ search _ E = Nothing
 search [x] (Leaf k v) | x == k    = Just v 
                       | otherwise = Nothing
 search _ (Leaf k v) = Nothing
-search [x] (Node k v l e r)    | x == k    = v
-                               | x < k     = search [x] l
-                               | otherwise = search [x] r
-search (x:xs) (Node k v l e r) | x == k    = search xs e
-                               | x < k     = search (x:xs) l
-                               | otherwise = search (x:xs) r
+search (x:xs) (Node k v l e r) | x == k && xs == [] = v
+                               | x == k             = search xs e
+                               | x < k              = search (x:xs) l
+                               | otherwise          = search (x:xs) r
 
 insert :: Ord k => [k] -> v -> TTree k v -> TTree k v
 insert [x] v E = Leaf x v
 insert (x:xs) v E = Node x Nothing E (insert xs v E) E 
-insert [x] v (Leaf k v2) | k == x    = Leaf k v
-                         | x < k     = Node k (Just v2) (insert [x] v E) E E
-                         | otherwise = Node k (Just v2) E E (insert [x] v E)
-insert (x:xs) v (Leaf k v2) | k == x    = Node k (Just v2) E (insert xs v E) E
-                            | x < k     = Node k (Just v2) (insert (x:xs) v E) E E
-                            | otherwise = Node k (Just v2) E E (insert (x:xs) v E)
-insert [x] v (Node k v2 l e r)    | x == k    = Node k (Just v) l e r
-                                  | x < k     = Node k v2 (insert [x] v l) e r
-                                  | otherwise = Node k v2 l e (insert [x] v r)
-insert (x:xs) v (Node k v2 l e r) | x == k    = Node k v2 l (insert xs v e) r
-                                  | x < k     = Node k v2 (insert (x:xs) v l) e r
-                                  | otherwise = Node k v2 l e (insert (x:xs) v r)
+insert (x:xs) v (Leaf k v2) | k == x && xs == [] = Leaf k v
+                            | k == x             = Node k (Just v2) E (insert xs v E) E
+                            | x < k              = Node k (Just v2) (insert (x:xs) v E) E E
+                            | otherwise          = Node k (Just v2) E E (insert (x:xs) v E)
+insert (x:xs) v (Node k v2 l e r) | x == k && xs == [] = Node k (Just v) l e r
+                                  | x == k             = Node k v2 l (insert xs v e) r
+                                  | x < k              = Node k v2 (insert (x:xs) v l) e r
+                                  | otherwise          = Node k v2 l e (insert (x:xs) v r)
 
 -- delete :: Ord k => [k] -> TTree k v -> TTree k v
 -- delete xs E = E
