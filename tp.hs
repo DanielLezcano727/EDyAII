@@ -8,6 +8,7 @@ data TTree k v = Node k (Maybe v) (TTree k v) (TTree k v) (TTree k v) | Leaf k v
 t= (Node 'r' Nothing E (Node 'e' (Just 16) (Node 'a' Nothing  E (Leaf 's' 1) E) (Node 'o' (Just 2) (Leaf 'd' 9) E (Leaf 's' 4)) E) (Node 's' Nothing E (Node 'i' (Just 4) (Leaf 'e' 8)(Leaf 'n' 7) E) E))
 -}
 
+-- search: devuelve (Maybe v) según si la clave k está presente o no en el árbol 
 search :: Ord k => [k] -> TTree k v -> Maybe v
 search [] _ = Nothing
 search _ E = Nothing
@@ -19,6 +20,7 @@ search (x:xs) (Node k v l e r) | x == k && xs == [] = v
                                | x < k              = search (x:xs) l
                                | otherwise          = search (x:xs) r
 
+-- insert: inserta una clave con su value en el árbol
 insert :: Ord k => [k] -> v -> TTree k v -> TTree k v
 insert [x] v E = Leaf x v
 insert (x:xs) v E = Node x Nothing E (insert xs v E) E 
@@ -31,6 +33,8 @@ insert (x:xs) v (Node k v2 l e r) | x == k && xs == [] = Node k (Just v) l e r
                                   | x < k              = Node k v2 (insert (x:xs) v l) e r
                                   | otherwise          = Node k v2 l e (insert (x:xs) v r)
 
+-- largosSubKeys: función auxiliar para delete, devuelve una lista de largos donde los valores representan
+--                la cantidad de pasos que se puede tomar en una clave k hasta llegar a un nodo que se puede borrar
 largosSubKeys :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> [Int]
 largosSubKeys [] _ _ = [0]
 largosSubKeys _ (Leaf k v) s = [0]
@@ -39,6 +43,9 @@ largosSubKeys (x:xs) (Node k v l e r) s | k == x && (l /= E || r /= E || v /= No
                                         | x < k                                         = [s] ++ largosSubKeys (x:xs) l (s+1)
                                         | otherwise                                     = [s] ++ largosSubKeys (x:xs) r (s+1)
 
+-- _delete: función auxiliar para delete, recibe un argumento extra que es la mayor de las alturas obtenidas en 
+--          largosSubKeys, se sabe entonces que todo nodo desde aquel indicado por la mayor altura es borrable y 
+--          reemplazable de ser necesario
 _delete :: (Ord k, Eq v) => [k] -> TTree k v -> Int -> TTree k v
 _delete _ (Leaf _ _) 0 = E
 _delete (x:xs) (Node k v l e r) 0 | x == k && xs == []         = Node k Nothing l e r
@@ -52,18 +59,23 @@ _delete (x:xs) (Node k v l e r) s | x == k    = Node k v l (_delete xs e (s-1)) 
                                   | x < k     = Node k v (_delete (x:xs) l (s-1)) e r
                                   | otherwise = Node k v l e (_delete (x:xs) r (s-1))
 
+-- delete: borra una clave de un árbol
 delete :: (Ord k, Eq v) => [k] -> TTree k v -> TTree k v
 delete xs t = if search xs t == Nothing then t else _delete xs t (maximum (largosSubKeys xs t 0))
 
+-- keys: devuelve una lista de las claves presentes en el árbol
 keys :: TTree k v -> [[k]]
 keys tree = map fst (inorder tree [])
 
+-- inorder: función auxiliar de keys, recorre el árbol con recorrido inorder y genera a lo largo del mismo las
+--          claves encontradas, retorna una lista de tuplas de claves y values
 inorder :: TTree k v -> [k] -> [([k], v)]
 inorder E _ = []
 inorder (Leaf k v) ks = [(ks++[k], v)]
 inorder (Node k Nothing l e r) ks = (inorder l ks) ++ (inorder e (ks++[k])) ++ (inorder r ks)
 inorder (Node k (Just v) l e r) ks = (inorder l ks) ++ [(ks++[k], v)] ++ (inorder e (ks++[k])) ++ (inorder r ks)
 
+-- keysAndValues: función creada para respetar la signatura de claves en Dic
 keysAndValues :: Ord k => TTree k v -> [([k], v)]
 keysAndValues tree = inorder tree []
 
